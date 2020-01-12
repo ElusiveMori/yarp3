@@ -37,17 +37,18 @@ BlzSetAbilityTooltip(%s, a, 0)
 //! endusercode
 ]]):format(abilityId)
 
-function preload.writeRaw(filename, content)
+function preload.writeRaw(filename, ...)
     ASSERT_ARG_TYPE(1, "filename", "string")
-    ASSERT_ARG_TYPE(2, "content", "string")
 
     PreloadGenClear()
     PreloadGenStart()
 
-    for i=0, ((#content) // maxPreloadSize) + 1 do
-        local segStart = (i * maxPreloadSize) + 1
-        local segEnd = math.min(((i + 1) * maxPreloadSize), #content)
-        Preload(content:sub(segStart, segEnd))
+    for _, content in pairs({...}) do
+        for i=0, ((#content) // maxPreloadSize) + 1 do
+            local segStart = (i * maxPreloadSize) + 1
+            local segEnd = math.min(((i + 1) * maxPreloadSize), #content)
+            Preload(content:sub(segStart, segEnd))
+        end
     end
 
     PreloadGenEnd(filename)

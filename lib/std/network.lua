@@ -116,8 +116,6 @@ local function receiveTransmissionChunk(sender, data)
     local transmission = transmissions[sender.id][transmissionId]
     table.insert(transmission.received, chunkData)
 
-    print("received ", #transmission.received, " out of ", transmission.queuedCount)
-
     if #transmission.received == transmission.queuedCount then
         transmissions[sender.id][transmission.id] = nil
 

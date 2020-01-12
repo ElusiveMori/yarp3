@@ -41,16 +41,18 @@ macro_define("SANITIZE_OBJID", MAKE_SANITIZE_OBJID)
 
 util = {}
 
-function print(...)
-    local args = {...}
-    local msgs = {}
+if not ceres.compiletime then
+    function print(...)
+        local args = {...}
+        local msgs = {}
 
-    for k, v in pairs(args) do
-        table.insert(msgs, tostring(v))
+        for k, v in pairs(args) do
+            table.insert(msgs, tostring(v))
+        end
+
+        local msg = table.concat(msgs, " ")
+        DisplayTimedTextToPlayer(GetLocalPlayer(), 0, 0, 60, msg)
     end
-
-    local msg = table.concat(msgs, " ")
-    DisplayTimedTextToPlayer(GetLocalPlayer(), 0, 0, 60, msg)
 end
 
 function util.id2s(id)

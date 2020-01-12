@@ -1,3 +1,4 @@
+require 'std.preload'
 
 compiletime(function()
     local template = [[
@@ -14,7 +15,7 @@ endfunction
     local connectorHooks = {}
 
     local function parsePreloaderFile(input)
-        local iter = input:gmatch("call Preload%( \"(.*-) \"%)\n")
+        local iter = input:gmatch("Preload%(%s*\"(.-)\"%s*%)%s*\n")
         local commandId = iter()
         local payload = ""
         for line in iter do payload = payload .. line end
@@ -48,8 +49,20 @@ endfunction
                 log("[CeresConnector] No such command '" .. commandId .. "'.")
                 return
             end
+
+            log("[CeresConnector] Received command '" .. commandId .. "'.")
+            connectorHooks[commandId](payload)
         end)
 
         log(err)
     end)
 end)
+
+connector = connector or {}
+
+function connector.sendCommand(commandId, payload)
+    ASSERT_ARG_TYPE(1, "commandId", "string")
+    ASSERT_ARG_TYPE(2, "payload", "string")
+
+    preload.writeRaw("ceresConnectorTrigger.pld", commandId, payload)
+end

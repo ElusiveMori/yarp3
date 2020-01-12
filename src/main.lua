@@ -9,7 +9,7 @@ require 'std.core.unitenterleave'
 
 require 'std.preload'
 require 'std.network'
--- require 'std.core.livereload'
+require 'std.livereload'
 
 compiletime(function()
     local crabIds = {}
