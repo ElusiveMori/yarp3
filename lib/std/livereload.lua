@@ -71,6 +71,7 @@ event.registerOnce(function()
             tryRead = function()
                 if retries == 0 then
                     print("LiveReload: failed to load script after 10 retries...")
+                    return
                 end
                 
                 retries = retries - 1
