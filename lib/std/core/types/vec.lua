@@ -1,8 +1,8 @@
 require 'std.core.util'
 
-local vec2Meta = util.meta.new("vec2")
-local vec3Meta = util.meta.new("vec3")
-local rectMeta = util.meta.new("rect")
+local vec2Meta = util.meta.get("vec2")
+local vec3Meta = util.meta.get("vec3")
+local rectMeta = util.meta.get("rect")
 
 function vec2(x, y)
     ASSERT_ARG_TYPE(1, "x", "number")

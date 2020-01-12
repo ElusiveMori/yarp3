@@ -1,46 +1,85 @@
 require 'std.core.util'
+require 'std.core.game'
 local hook = require 'std.core.hook'
 
-timer = timer or {
-    __recycled = {}
-}
+timer = timer or {}
 
-local recycledTimers = timer.__recycled
-local timerMeta = util.meta.new("timer")
+local context = util.context("timer", {
+    scheduled = {}
+})
 
-function timer.new()
-    local ti
-    if #recycledTimers > 0 then
-        ti = table.remove(recycledTimers)
-    else
-        ti = CreateTimer()
-    end
+local scheduledTimers = context.scheduled
+local timerMeta = util.meta.get("timer")
 
-    local t = {
-        __h = ti
-    }
+local function getTimer()
+    local t = {}
     setmetatable(t, timerMeta)
     return t
 end
 
-function timerMeta.funcs:release()
-    table.insert(recycledTimers, self.__h)
-    self.__h = nil
-    setmetatable(self, nil)
+local function scheduleTimer(toSchedule)
+    local scheduledTime = toSchedule.scheduledTime
+
+    for i=#scheduledTimers, 1, -1 do
+        if scheduledTimers[i].scheduledTime > scheduledTime then
+            table.insert(scheduledTimers, i+1, toSchedule)
+            return
+        end
+    end
+
+    table.insert(scheduledTimers, 1, toSchedule)
 end
 
-function timerMeta.funcs:start(timeout, callback)
-    TimerStart(self.__h, timeout, false, ceres.wrapCatch(callback))
+function timerMeta.funcs:cancel()
+    for i=1, #scheduledTimers do
+        if scheduledTimers[i] == self then
+            table.remove(scheduledTimers, i)
+        end
+    end
 end
 
 function timer.simple(timeout, callback)
-    local ti = timer.new()
-    ti:start(timeout, function()
-        callback()
-        ti:release()
-    end)
+    local newTimer = getTimer()
+    newTimer.scheduledTime = game.getElapsedTime() + timeout
+    newTimer.callback = ceres.wrapCatch(callback)
+
+    scheduleTimer(newTimer)
+    return newTimer
 end
 
-function timer.null(callback)
-    timer.simple(0, callback)
+function timer.periodic(period, callback)
+    local newTimer = getTimer()
+    newTimer.scheduledTime = game.getElapsedTime() + period
+    newTimer.period = period
+    newTimer.callback = ceres.wrapCatch(callback)
+
+    scheduleTimer(newTimer)
+    return newTimer
 end
+
+hook.once(function()
+    local ti = CreateTimer()
+    TimerStart(ti, 1/128, true, function()
+        local elapsed = game.getElapsedTime()
+        local toReschedule = {}
+
+        for i=#scheduledTimers, 1, -1 do
+            local currentTimer = scheduledTimers[i]
+            if currentTimer.scheduledTime <= elapsed then
+                scheduledTimers[i] = nil
+                currentTimer.callback()
+
+                if currentTimer.period then
+                    currentTimer.scheduledTime = elapsed + currentTimer.period
+                    table.insert(toReschedule, currentTimer)
+                end
+            else
+                break
+            end
+        end
+
+        for _, v in pairs(toReschedule) do
+            scheduleTimer(v)
+        end
+    end)
+end)

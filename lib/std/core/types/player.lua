@@ -8,7 +8,7 @@ player = player or {
 
 local playerStorage = player.__playerStorage
 local localPlayer = player.__localPlayer
-local playerMeta = util.meta.new("player")
+local playerMeta = util.meta.get("player")
 
 local function wrapPlayer(p)
     local id = GetPlayerId(p)
@@ -47,6 +47,18 @@ function player.getAll()
     return t
 end
 
+function playerMeta.get:isLocal()
+    return player.__localPlayer == self
+end
+
+function playerMeta.get:isHuman()
+    return GetPlayerController(self.__h) == MAP_CONTROL_USER
+end
+
+function playerMeta.get:isPlaying()
+    return GetPlayerSlotState(self.__h) == PLAYER_SLOT_STATE_PLAYING
+end
+
 function playerMeta.get:id()
     return self.__id
 end
@@ -61,12 +73,10 @@ function playerMeta.set:name(name)
     SetPlayerName(self.__h, name)
 end
 
-hook.add("init", function()
-    for i=0, bj_MAX_PLAYER_SLOTS - 1 do
-        player.__playerStorage[i] = wrapPlayer(Player(i))
-    end
+for i=0, bj_MAX_PLAYER_SLOTS - 1 do
+    player.__playerStorage[i] = wrapPlayer(Player(i))
+end
 
-    player.__localPlayer = player.__playerStorage[GetPlayerId(GetLocalPlayer())]
-end)
+player.__localPlayer = player.__playerStorage[GetPlayerId(GetLocalPlayer())]
 
 return player

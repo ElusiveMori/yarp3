@@ -7,8 +7,8 @@ unit = unit or {
 }
 
 local unitStorage = unit.__unitStorage
-local unitMeta = util.meta.new("unit")
-local dummyGroup
+local unitMeta = util.meta.get("unit")
+local dummyGroup = unit.__dummyGroup
 
 local function wrapUnit(u)
     local id = GetHandleId(u)
@@ -22,95 +22,134 @@ local function wrapUnit(u)
     return t
 end
 
+local targetCollection
+local collectIntoTarget = Filter(function()
+    table.insert(targetCollection, wrapUnit(GetFilterUnit()))
+end)
+
 _G.__WrapUnit = wrapUnit
 
 function unit.create(owner, id)
     ASSERT_ARG_TYPE(1, "owner", "player")
     SANITIZE_OBJID("id")
 
-    return wrapUnit(CreateUnit(owner, id, 0, 0, 0))
-end
-
-local function emptyDummyGroup(t)
-    local size = BlzGroupGetSize(dummyGroup)
-    for i=0, size-1 do
-        local u = BlzGroupUnitAt(dummyGroup, i)
-        if u ~= nil then
-            table.insert(t, wrapUnit(u))
-        end
-    end
-    GroupClear(dummyGroup)
+    return wrapUnit(CreateUnit(owner.__h, id, 0, 0, 0))
 end
 
 function unit.getOwnedBy(who)
     ASSERT_ARG_TYPE(1, "who", "player")
-    local t = {}
-    GroupEnumUnitsOfPlayer(dummyGroup, who.__h, nil)
-    emptyDummyGroup(t)
-    return t
+    targetCollection = {}
+    GroupEnumUnitsOfPlayer(dummyGroup, who.__h, collectIntoTarget)
+    return targetCollection
 end
 
 function unit.getAll()
-    local t = {}
+    targetCollection = {}
     for _, p in pairs(player.getAll()) do
-        GroupEnumUnitsOfPlayer(dummyGroup, p.__h, nil)
-        emptyDummyGroup(t)
+        GroupEnumUnitsOfPlayer(dummyGroup, p.__h, collectIntoTarget)
     end
-    return t
+    return targetCollection
 end
 
 function unit.getInRect(rect)
     ASSERT_ARG_TYPE(1, "rect", "rect")
-    local t = {}
-    GroupEnumUnitsInRect(dummyGroup, rect.__h, nil)
-    emptyDummyGroup(t)
-    return t
+    targetCollection = {}
+    GroupEnumUnitsInRect(dummyGroup, rect.__h, collectIntoTarget)
+    return targetCollection
 end
 
 function unit.getInRange(pos, range)
     ASSERT_ARG_TYPE(1, "pos", "vec2")
     ASSERT_ARG_TYPE(2, "range", "number")
     ASSERT_COND("range >= 0")
-    local t = {}
-    GroupEnumUnitsInRange(dummyGroup, pos.x, pos.y, range, nil)
-    emptyDummyGroup(t)
-    return t
+    targetCollection = {}
+    GroupEnumUnitsInRange(dummyGroup, pos.x, pos.y, range, collectIntoTarget)
+    return targetCollection
 end
 
 function unit.getSelectedBy(who)
     ASSERT_ARG_TYPE(1, "who", "player")
-    local t = {}
-    GroupEnumUnitsSelected(dummyGroup, who.__h, nil)
-    emptyDummyGroup(t)
-    return t
+    targetCollection = {}
+    GroupEnumUnitsSelected(dummyGroup, who.__h, collectIntoTarget)
+    return targetCollection
 end
 
-function unitMeta.get:name()
-    return GetUnitName(self.__h)
-end
+macro_define("GEN_U_GET_BINDING", function(nativeName, propertyName, wrapper)
+    return (prepare_macro_template [[
+        function unitMeta.get:%s()
+            return %s
+        end
+    ]]):format(propertyName, (wrapper or "%s(self.__h)"):format(nativeName))
+end)
 
-function unitMeta.get:owner()
-    return __WrapPlayer(GetOwningPlayer(self.__h))
-end
+macro_define("GEN_U_SET_BINDING", function(nativeName, typeId, propertyName, wrapper)
+    return (prepare_macro_template [[
+        function unitMeta.set:%s(v)
+            %s
+            %s
+        end
+    ]]):format(propertyName, MAKE_ASSERT_ARG_TYPE(1, "v", typeId), (wrapper or "%s(self.__h, v)"):format(nativeName))
+end)
 
-function unitMeta.funcs:remove()
-    RemoveUnit(self.__h)
-end
+macro_define("GEN_U_FUNC", function(nativeName, funcName, args, wrapper, extraAsserts)
+    local params
+    local asserts
+    if args and #args > 0 then
+        params = {}
+        for i in ipairs(args) do table.insert(params, args[i][1]) end
+        params = table.concat(params, ", ")
+        asserts = ""
+        for i, v in ipairs(args) do
+            if v[2] == "id" then
+                asserts = asserts .. MAKE_SANITIZE_OBJID(v[1])
+            else
+                asserts = asserts .. MAKE_ASSERT_ARG_TYPE(i, v[1], v[2]) .. " "
+            end
+        end
+    else
+        params = ""
+        asserts = ""
+    end
+    if extraAsserts then
+        for _, v in pairs(extraAsserts) do
+            asserts = asserts + MAKE_ASSERT_COND(v) .. " "
+        end
+    end
+    wrapper = (wrapper or ((args and #args > 0) and "%s(self.__h, %s)" or "%s(self.__h)")):format(nativeName, params)
+    return (prepare_macro_template [[
+        function unitMeta.funcs:%s(%s)
+            %s
+            %s
+        end
+    ]]):format(funcName, params, asserts, wrapper)
+end)
 
-function unitMeta.funcs:kill()
-    KillUnit(self.__h)
-end
+compiletime(function() 
+    PLAYER_WRAP = "__WrapPlayer(%s(self.__h))"
+    HANDLE_UNWRAP = "%s(self.__h, v.__h)"
+end)
 
-function unitMeta.funcs:getAbilityLevel(abilityId)
-    SANITIZE_OBJID("abilityId")
-    return GetUnitAbilityLevel(self.__h, abilityId)
-end
+GEN_U_GET_BINDING("GetUnitName",     "name")
+GEN_U_GET_BINDING("GetOwningPlayer", "owner", PLAYER_WRAP)
 
-hook.add("init", function()
+GEN_U_SET_BINDING("BlzSetUnitName", "string", "name")
+GEN_U_SET_BINDING("SetUnitOwner",   "player", "owner", HANDLE_UNWRAP)
+
+GEN_U_FUNC("RemoveUnit",          "remove")
+GEN_U_FUNC("KillUnit",            "kill")
+
+GEN_U_FUNC("GetUnitAbilityLevel", "getAbilityLevel", {{"abilityId", "id"}})
+GEN_U_FUNC("SetUnitAbilityLevel", "setAbilityLevel", {{"abilityId", "id"}, {"level", "number"}})
+GEN_U_FUNC("UnitAddAbility",       "addAbility",     {{"abilityId", "id"}})
+
+
+hook.once(function()
     dummyGroup = CreateGroup()
+    unit.__dummyGroup = dummyGroup
 end)
 
 hook.addPost("unitRemoved", function(removedUnit)
+    unitStorage[GetHandleId(removedUnit.__h)] = nil
     removedUnit.__h = nil
     setmetatable(removedUnit, nil)
 end)

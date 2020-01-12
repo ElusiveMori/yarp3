@@ -19,17 +19,22 @@ compiletime(function()
         do
         local t = typeId(%s)
         if t ~= "%s" then
+            print(t)
             error("argument #%s ('%s') must be a '%s', but got a " .. t .. " instead")
         end
         end
     ]])
+
+    function MAKE_ASSERT_ARG_TYPE(num, arg, requiredType)
+        if not ASSERTS_DISABLED then
+            return string.format(ASSERT_ARG_TEMPLATE, arg, requiredType, num, arg, requiredType)
+        else
+            return ""
+        end
+    end
 end)
 
-macro_define("ASSERT_ARG_TYPE", function(num, arg, requiredType)
-    local out = string.format(ASSERT_ARG_TEMPLATE, arg, requiredType, num, arg, requiredType)
-
-    return out
-end)
+macro_define("ASSERT_ARG_TYPE", MAKE_ASSERT_ARG_TYPE)
 
 compiletime(function()
     ASSERT_COND_TEMPLATE = prepare_macro_template([[
@@ -40,10 +45,14 @@ compiletime(function()
         end
         end
     ]])
+
+    function MAKE_ASSERT_COND(expr)
+        if not ASSERTS_DISABLED then
+            return string.format(ASSERT_COND_TEMPLATE, expr, expr)
+        else
+            return ""
+        end
+    end
 end)
 
-macro_define("ASSERT_COND", function(expr)
-    local out = string.format(ASSERT_COND_TEMPLATE, expr, expr)
-
-    return out
-end)
+macro_define("ASSERT_COND", MAKE_ASSERT_COND)

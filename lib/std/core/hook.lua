@@ -24,7 +24,7 @@ function hook.addPost(id, callback)
 end
 
 local function callFuncsInTable(id, t, ...)
-    for k, v in pairs(t) do
+    for k, v in ipairs(t) do
         local success, err = pcall(v, ...)
 
         if not success then
@@ -42,9 +42,16 @@ function hook.call(id, ...)
     end
 end
 
-ceres.addHook("main::after", function()
-    hook.call("init")
-    hook.call("reload")
+function hook.once(callback)
+    if not ceres.initialized then
+        callback()
+    end
+end
+
+ceres.addHook("reload::before", function()
+    for k, v in pairs(hookRegistry) do
+        hookRegistry[k] = nil
+    end
 end)
 
 return hook

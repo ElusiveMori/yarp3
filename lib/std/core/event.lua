@@ -9,8 +9,7 @@ local hook = require 'std.core.hook'
 event = event or {
     __war3eventRegistry = {
         stateless = {},
-        chat = {},
-        region = {}
+        stateful = {},
     }
 }
 
@@ -70,13 +69,17 @@ U = {
 
 -- player event ids
 P = {
-
+    DEFEAT        = 13,
+    VICTORY       = 14,
+    LEAVE         = 15,
+    END_CINEMATIC = 17
 }
 
 -- game event ids
 G = {
-    INIT   = {},
-    RELOAD = {},
+    INIT   = "init",
+    RELOAD = "reload",
+    MAPSTART = "mapStart"
 }
 
 -- unit wrap shortcut
@@ -172,6 +175,13 @@ local unitEventArgMappers = {
     [U.SPELL_ENDCAST]       = {uw(GetTriggerUnit) --[[TODO: add spell handler support]]},
 }
 
+local playerEventArgMappers = {
+    [P.DEFEAT]        = {pw(GetTriggerPlayer)},
+    [P.LEAVE]         = {pw(GetTriggerPlayer)},
+    [P.VICTORY]       = {pw(GetTriggerPlayer)},
+    [P.END_CINEMATIC] = {pw(GetTriggerPlayer)},
+}
+
 local function getArgMapper(eventId, handlerTable, callback)
     local funcs = handlerTable[eventId]
 
@@ -179,44 +189,58 @@ local function getArgMapper(eventId, handlerTable, callback)
         return nil
     end
 
-    return function()
+    return ceres.wrapCatch(function()
         local args = {}
         for i, v in ipairs(funcs) do
             args[i] = v()
         end
         callback(table.unpack(args))
-    end
-end
-
-local function deferInit(callback)
-    if ceres.isInitialized() then
-        callback()
-    else
-        hook.add("init", callback)
-    end
+    end)
 end
 
 local function activateWar3Event(eventId)
-    deferInit(function()
-        if war3eventRegistry.stateless[eventId] ~= nil then
-            return
-        end
+    if war3eventRegistry.stateless[eventId] ~= nil then
+        return
+    end
 
-        if unitEventArgMappers[eventId] ~= nil then
-            local argMapper = getArgMapper(eventId, unitEventArgMappers, ceres.wrapCatch(
-                function(...)
-                    hook.call(eventId, ...)
-                end
-            ))
+    if unitEventArgMappers[eventId] then
+        local argMapper = getArgMapper(eventId, unitEventArgMappers,
+            function(...)
+                hook.call(eventId, ...)
+            end)
 
-            local trig = CreateTrigger()
-            TriggerAddAction(trig, argMapper)
-            for i=0, bj_MAX_PLAYER_SLOTS-1 do
-                TriggerRegisterPlayerUnitEvent(trig, Player(i), ConvertPlayerUnitEvent(eventId), nil)
-            end
-            war3eventRegistry.stateless[eventId] = trig
+        local trig = CreateTrigger()
+        TriggerAddAction(trig, argMapper)
+        for i=0, bj_MAX_PLAYER_SLOTS-1 do
+            TriggerRegisterPlayerUnitEvent(trig, Player(i), ConvertPlayerUnitEvent(eventId), nil)
         end
-    end)
+        war3eventRegistry.stateless[eventId] = trig
+    elseif playerEventArgMappers[eventId] then
+        local argMapper = getArgMapper(eventId, playerEventArgMappers,
+            function(...)
+                hook.call(eventId, ...)
+            end)
+
+        local trig = CreateTrigger()
+        TriggerAddAction(trig, argMapper)
+        for i=0, bj_MAX_PLAYER_SLOTS-1 do
+            TriggerRegisterPlayerEvent(trig, Player(i), ConvertPlayerEvent(eventId), nil)
+        end
+        war3eventRegistry.stateless[eventId] = trig
+    end
+end
+
+ceres.addHook("reload::before", function()
+    for _, v in pairs(war3eventRegistry.stateful) do
+        DisableTrigger(v)
+        DestroyTrigger(v)
+    end
+
+    war3eventRegistry.stateful = {}
+end)
+
+function event.registerOnce(callback)
+    hook.once(callback)
 end
 
 function event.register(eventId, callback)
@@ -232,48 +256,43 @@ function event.registerChat(matchExactly, matchPattern, callback)
     ASSERT_ARG_TYPE(2, "matchPattern", "string")
     ASSERT_ARG_TYPE(3, "callback", "function")
 
-    deferInit(function()
-        local trig = CreateTrigger()
-        TriggerAddAction(trig, ceres.wrapCatch(function()
-            local p = pw(GetTriggerPlayer)()
-            local s = GetEventPlayerChatString()
+    local trig = CreateTrigger()
+    TriggerAddAction(trig, ceres.wrapCatch(function()
+        local p = pw(GetTriggerPlayer)()
+        local s = GetEventPlayerChatString()
 
-            callback(p, s)
-        end))
-        for i=0, bj_MAX_PLAYER_SLOTS do
-            TriggerRegisterPlayerChatEvent(trig, Player(i), matchPattern, matchExactly)
-        end
-        table.insert(war3eventRegistry.chat, trig)
-    end)
+        callback(p, s)
+    end))
+    for i=0, bj_MAX_PLAYER_SLOTS do
+        TriggerRegisterPlayerChatEvent(trig, Player(i), matchPattern, matchExactly)
+    end
+    table.insert(war3eventRegistry.stateful, trig)
 end
 
 function event.registerUnitEnterRegion(whichRegion, callback)
     ASSERT_ARG_TYPE(1, "whichRegion", "region")
     ASSERT_ARG_TYPE(2, "callback", "function")
 
-    deferInit(function()
-        local trig = CreateTrigger()
-        TriggerAddAction(trig, ceres.wrapCatch(function()
-            local u = uw(GetEnteringUnit)()
-            callback(u)
-        end))
-        TriggerRegisterEnterRegion(trig, whichRegion.__h, nil)
-    end)
+    local trig = CreateTrigger()
+    TriggerAddAction(trig, ceres.wrapCatch(function()
+        local u = uw(GetEnteringUnit)()
+        callback(u)
+    end))
+    TriggerRegisterEnterRegion(trig, whichRegion.__h, nil)
+    table.insert(war3eventRegistry.stateful, trig)
 end
 
 function event.registerUnitLeaveRegion(whichRegion, callback)
     ASSERT_ARG_TYPE(1, "whichRegion", "region")
     ASSERT_ARG_TYPE(2, "callback", "function")
 
-    deferInit(function()
-        local trig = CreateTrigger()
-        TriggerAddAction(trig, ceres.wrapCatch(function()
-            local u = uw(GetEnteringUnit())
-            callback(u)
-        end))
-        TriggerRegisterLeaveRegion(trig, whichRegion.__h, nil)
-    end)
+    local trig = CreateTrigger()
+    TriggerAddAction(trig, ceres.wrapCatch(function()
+        local u = uw(GetEnteringUnit())
+        callback(u)
+    end))
+    TriggerRegisterLeaveRegion(trig, whichRegion.__h, nil)
+    table.insert(war3eventRegistry.stateful, trig)
 end
 
 --[[ TODO: Add support for trackable events ]]
---[[ TODO: Add support for region events ]]

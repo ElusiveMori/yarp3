@@ -5,7 +5,7 @@ region = region or {
 }
 
 local regionStorage = region.__regionStorage
-local regionMeta = util.meta.new("region")
+local regionMeta = util.meta.get("region")
 
 local function wrapRegion(r)
     local id = GetHandleId(r)

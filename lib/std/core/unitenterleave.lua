@@ -9,7 +9,7 @@ local undefendOrderId = 852056
 local abilityId = compiletime(function()
     require("std.core.util")
 
-    UNIT_ENTER_LEAVE_ABILITY_ID = idgen.abil()
+    UNIT_ENTER_LEAVE_ABILITY_ID = UNIT_ENTER_LEAVE_ABILITY_ID or idgen.abil()
 
     return util.s2id(UNIT_ENTER_LEAVE_ABILITY_ID)
 end)
@@ -28,22 +28,16 @@ local function processUnit(whichUnit)
     hook.call("unitCreated", whichUnit)
 end
 
-hook.add("init", function()
+hook.once(function()
     for _, v in pairs(player.getAll()) do
-        SetPlayerAbilityAvailable(v.__h, util.s2id(abilityId), false)
+        SetPlayerAbilityAvailable(v.__h, abilityId, false)
     end
+end)
 
-    event.registerUnitEnterRegion(mapbounds.wholeRegion(), processUnit)
+event.registerUnitEnterRegion(mapbounds.wholeRegion(), processUnit)
 
-    event.register(U.ISSUED_ORDER, function(orderedUnit, orderId)
-        if orderedUnit:getAbilityLevel(abilityId) == 0 and orderId == undefendOrderId then
-            hook.call("unitRemoved", orderedUnit)
-        end
-    end)
-
-    timer.null(function()
-        for _, v in pairs(unit.getAll()) do
-            processUnit(v)
-        end
-    end)
+event.register(U.ISSUED_ORDER, function(orderedUnit, orderId)
+    if orderedUnit:getAbilityLevel(abilityId) == 0 and orderId == undefendOrderId then
+        hook.call("unitRemoved", orderedUnit)
+    end
 end)

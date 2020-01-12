@@ -5,6 +5,7 @@ require 'std.core.types.rect'
 require 'std.core.types.timer'
 require 'std.core.types.region'
 
+require 'std.core.game'
 require 'std.core.event'
 require 'std.core.unitenterleave'
 require 'std.core.mapbounds'

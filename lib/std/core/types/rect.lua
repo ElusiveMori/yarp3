@@ -1,6 +1,6 @@
 require 'std.core.util'
 
-local rectMeta = util.meta.new("rect")
+local rectMeta = util.meta.get("rect")
 
 function rect(min, max)
     ASSERT_ARG_TYPE(1, "min", "vec2")

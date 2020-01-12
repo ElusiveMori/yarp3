@@ -20,7 +20,7 @@ function mapbounds.wholeRegion()
     return mapbounds.__wholeRegion
 end
 
-hook.add("init", function()
+hook.once(function()
     mapbounds.__playable = rectFromNative(GetPlayableMapRect())
     mapbounds.__whole = rectFromNative(GetWorldBounds())
 

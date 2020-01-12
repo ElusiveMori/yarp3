@@ -1,9 +1,14 @@
 require 'std.core.util.assert'
 
+util.__metatables = {}
 local meta = {}
 
-function meta.new(typeName)
+function meta.get(typeName)
     ASSERT_ARG_TYPE(1, "typeName", "string")
+
+    if util.__metatables[typeName] ~= nil then
+        return util.__metatables[typeName]
+    end
 
     local t = {
         __typeId = typeName
