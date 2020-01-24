@@ -1,0 +1,16 @@
+{
+    "name": "ceres-ts",
+    "version": "1.0.0",
+    "description": "",
+    "main": "index.js",
+    "dependencies": {
+        "lua-types": "^2.7.0",
+        "tslint-eslint-rules": "^5.4.0"
+    },
+    "devDependencies": {},
+    "scripts": {
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "author": "",
+    "license": "ISC"
+}
