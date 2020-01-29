@@ -16,12 +16,12 @@ function PreloadFiles takes nothing returns nothing
     //! beginusercode
     local a = ""
     %s
-    BlzSetAbilityTooltip(FourCC("ANcl"), a, 0)
+    BlzSetAbilityIcon(FourCC("ANcl"), a)
     //! endusercode
 endfunction
 `
 
-    connector.addCommand("std-livereload", () => {
+    connector.addCommand("std-livereload", (...data) => {
         log("[STDLIB-LiveReload] Received reload command.")
         lastBuildCommand.output = "script"
         let result = ceres.buildMap(lastBuildCommand)
@@ -36,7 +36,10 @@ endfunction
         }
 
         let newScript = string.format(template, payload)
-        fs.writeFile((ceres as any).runConfig.mapDataDir + "/ceresLiveReloadFile.pld", newScript)
+        fs.writeFile(
+            (ceres as any).runConfig.mapDataDir + `/ceresLiveReloadFile${data[0]}.pld`,
+            newScript
+        )
         log("[STDLIB-LiveReload] Map built and live reload successfully triggered.")
     })
 })
@@ -67,24 +70,27 @@ network.receive("__lr", (sender: Player) => {
 
 util.runOnce(() => {
     let t = CreateTrigger()
+    let counter = 0
     TriggerAddAction(
         t,
         ceres.wrapSafeCall(() => {
+            let thisCounter = counter
+            counter++
             if (Player.all[0].isLocal) {
-                preload.write("ceresLiveReloadFile.pld", "NODATA")
-                connector.sendCommand("std-livereload", "")
+                preload.write(`ceresLiveReloadFile${thisCounter}.pld`, "NODATA")
+                connector.sendCommand("std-livereload", tostring(thisCounter))
 
                 let tryRead: () => void
-                let retries = 10
+                let retries = 1
                 tryRead = () => {
                     if (retries == 0) {
-                        print("LiveReload: failed to load script after 10 retries...")
+                        print("LiveReload: failed to load script...")
                         return
                     }
 
                     retries = retries - 1
 
-                    context.newScript = preload.read("ceresLiveReloadFile.pld")
+                    context.newScript = preload.read(`ceresLiveReloadFile${thisCounter}.pld`)
                     if (!context.newScript || context.newScript == "NODATA") {
                         Timer.simple(0.2, tryRead)
                     } else {
@@ -92,7 +98,7 @@ util.runOnce(() => {
                     }
                 }
 
-                Timer.simple(0.2, tryRead)
+                Timer.simple(1.5, tryRead)
             }
         })
     )

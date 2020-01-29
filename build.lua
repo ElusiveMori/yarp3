@@ -1,7 +1,8 @@
 ceres.runConfig = {
     command = "start-wc3",
     prefix = "Z:/",
-    mapDataDir = "/home/mori/Documents/Warcraft III/CustomMapData"
+    mapDataDir = "/home/mori/Documents/Warcraft III/CustomMapData",
+    args = {"-launch", "-windowmode", "windowed"}
 }
 
 table.insert(ceres.layout.srcDirectories, "ts/compiled/")

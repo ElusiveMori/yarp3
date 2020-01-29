@@ -1,3 +1,5 @@
+import Player from "./types/player"
+
 let context = util.contextFn("game", () => {
     let tracker = CreateTimer()
     TimerStart(tracker, 60 * 60 * 24 * 365, false, undefined)
@@ -11,6 +13,11 @@ export function elapsedTime(): number {
 }
 
 export function isSinglePlayer(): boolean {
-    // TODO: implement
-    return true
+    let count = 0
+    for (let player of Player.all) {
+        if (player.isHuman && player.isPlaying) {
+            count++
+        }
+    }
+    return count == 1
 }

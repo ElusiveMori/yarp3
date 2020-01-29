@@ -8,6 +8,7 @@ end)
 require("tsstd.core.util")
 
 compiletime(function()
+    require("lualib_bundle")
     require("tsstd.core.util")
 end)
 

@@ -39,6 +39,14 @@ class Player extends Handle<jplayer> {
         return this == Player.local
     }
 
+    get isHuman() {
+        return GetPlayerController(this.handle) == MAP_CONTROL_USER
+    }
+
+    get isPlaying() {
+        return GetPlayerSlotState(this.handle) == PLAYER_SLOT_STATE_PLAYING
+    }
+
     destroy() {
         throw new Error("Player instances are not supposed to be destroyed.")
     }

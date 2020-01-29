@@ -3,11 +3,6 @@ import Player from "../tsstd/core/types/player"
 import Unit from "../tsstd/core/types/unit"
 import { parseWord, parseCommand, parseArgument } from "./parsers"
 
-interface Macro {
-    trigger: string
-    expansion: string
-}
-
 interface SimpleCommand {
     trigger: string
     callback: (this: void, executor: Player, argument: string) => void
@@ -18,30 +13,85 @@ interface ChainableCommand {
     callback: (this: void, executor: Player, argument: string) => void
 }
 
-class CommandExecutionContext {
+let macros = new Map<Player, Map<string, string>>()
+let aliases = new Map<Player, Map<string, string>>()
+let simpleCommands = new Map<string, SimpleCommand>()
+let chainableCommands = new Map<string, ChainableCommand>()
+
+for (let player of Player.all) {
+    macros.set(player, new Map())
+    aliases.set(player, new Map())
+}
+
+class CommandThread {
+    private static threadMap = new Map<LuaThread, CommandThread>()
+
+    private thread: LuaThread
+    private commandQueue: string[] = []
+    private started: boolean
     executor: Player
-    remaining: string
     selection: Unit[]
 
-    constructor(executor: Player, command: string) {
+    constructor(executor: Player) {
         this.executor = executor
-        this.remaining = command
+        this.started = false
+        this.thread = coroutine.create(() => this.run())
 
         this.selection = Unit.getSelectionOf(executor)
     }
+
+    start(): void {
+        if (this.started) {
+            error("cannot double-start a command thread")
+        }
+
+        this.started = true
+        coroutine.resume(this.thread)
+    }
+
+    addRawInput(input: string): void {
+        let commandString: string
+        let rest: string = input
+
+        do {
+            ;[commandString, rest] = parseCommand(rest)
+            table.insert(this.commandQueue, 1, commandString)
+        } while (rest != "")
+    }
+
+    executeCommand(command: string): void {
+        let [commandId, args] = parseArgument(command)
+        if (chainableCommands.has(commandId)) {
+            let command = chainableCommands.get(commandId)!
+            command.callback(this.executor, args)
+        }
+    }
+
+    private run(): void {
+        while (this.commandQueue.length > 0) {
+            let command = table.remove(this.commandQueue)!
+            print(`retrieved cmd: "${command}"`)
+            this.executeCommand(command)
+        }
+    }
+
+    static get(): CommandThread {
+        let [coro, _] = coroutine.running()
+        let thread = this.threadMap.get(coro)
+        if (thread != undefined) {
+            return thread
+        } else {
+            error("Tried to get CommandThread inside non-command coroutine")
+        }
+    }
 }
 
-let macros = new Map<string, Macro>()
-let simpleCommands = new Map<string, SimpleCommand>()
-let chainableCommands = new Map<string, ChainableCommand>()
-let executionContexts = new Map<LuaThread, []>()
-
-function expandMacros(input: string): string {
+function expandMacros(executor: Player, input: string): string {
     input = input.trim()
 
-    for (let [k, v] of macros) {
+    for (let [k, v] of macros.get(executor)!) {
         if (input.startsWith(k)) {
-            input = `${v.expansion} ${input.substring(k.length)}`
+            input = `${v} ${input.substring(k.length)}`
             break
         }
     }
@@ -60,12 +110,12 @@ function executeChainableCommands(player: Player, input: string): void {
 
     if (rest != undefined && rest != "") {
         // tail call
-        return executeChainableCommands(player, expandMacros(rest))
+        return executeChainableCommands(player, expandMacros(player, rest))
     }
 }
 
 function startCommandExecution(player: Player, input: string) {
-    input = expandMacros(input)
+    input = expandMacros(player, input)
 
     let [commandId, rest] = parseWord(input)
 
@@ -74,7 +124,9 @@ function startCommandExecution(player: Player, input: string) {
 
         command.callback(player, rest)
     } else {
-        executeChainableCommands(player, input)
+        let commandThread = new CommandThread(player)
+        commandThread.addRawInput(input)
+        commandThread.start()
     }
 }
 
@@ -93,6 +145,8 @@ export function registerChainableCommand(
     chainableCommands.set(id, { trigger: id, callback: action })
 }
 
-export function registerMacro(macro: string, expansion: string) {
-    macros.set(macro, { trigger: macro, expansion: expansion })
+export function registerDefaultMacro(macro: string, expansion: string) {
+    for (let player of Player.all) {
+        macros.get(player)!.set(macro, expansion)
+    }
 }

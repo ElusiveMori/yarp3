@@ -183,6 +183,11 @@ function updateQueue(): void {
 }
 
 export function synchronize(sender: Player, payload: string, callback: TransmissionCallback) {
+    if (isSinglePlayer()) {
+        callback(payload, "success")
+        return
+    }
+
     if (!context.transmissions[sender.id]) {
         context.transmissions[sender.id] = new Map()
     }

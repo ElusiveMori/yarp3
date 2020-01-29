@@ -1,3 +1,7 @@
+const QUOTE_TOKEN_OPEN = "<<"
+const QUOTE_TOKEN_CLOSE = ">>"
+const COMMAND_SEP_TOKEN = "|"
+
 /** @tuplereturn */
 export function parseWord(input: string): [string, string] {
     let i = 0
@@ -18,19 +22,19 @@ export function parseCommand(input: string): [string, string] {
     let i = 0
     let depth = 0
     while (i < length) {
-        if (input.substring(i, i + 2) == "<<") {
+        if (input.substring(i, i + 2) == QUOTE_TOKEN_OPEN) {
             depth++
             i += 2
             continue
         }
 
-        if (input.substring(i, i + 2) == ">>") {
+        if (input.substring(i, i + 2) == QUOTE_TOKEN_CLOSE) {
             depth = math.max(0, depth - 1)
             i += 2
             continue
         }
 
-        if (input.charAt(i) == "|" && depth == 0) {
+        if (input.charAt(i) == COMMAND_SEP_TOKEN && depth == 0) {
             return [input.substring(0, i - 1), input.substring(i + 1)]
         }
 
@@ -52,7 +56,7 @@ export function parseArgument(input: string): [string, string] {
             return [input.substring(start, i), input.substring(i + 1)]
         }
 
-        if (input.substring(i, i + 2) == "<<") {
+        if (input.substring(i, i + 2) == QUOTE_TOKEN_OPEN) {
             if (depth == 0) {
                 start = i + 2
             }
@@ -61,7 +65,7 @@ export function parseArgument(input: string): [string, string] {
             i += 2
         }
 
-        if (input.substring(i, i + 2) == ">>") {
+        if (input.substring(i, i + 2) == QUOTE_TOKEN_CLOSE) {
             depth--
 
             if (depth == 0) {

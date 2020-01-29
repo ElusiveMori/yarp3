@@ -1,4 +1,9 @@
 compiletime(function()
+    if NEVER then
+    end
+end)
+
+compiletime(function()
     function prepare_macro_template(s)
         return s:gsub("\n", ""):gsub("[ ]+", " "):gsub("^[ ]+", ""):gsub("[ ]+$", "")
     end
@@ -92,6 +97,7 @@ end
 
 require 'std.core.util.assert'
 require 'std.core.util.idgen'
+require 'std.core.util.string'
 
 util.meta = require 'std.core.util.meta'
 

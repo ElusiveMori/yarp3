@@ -3,9 +3,9 @@ let maxPreloadSize = 259
 let noDataMarker = "NO_DATA_PRESENT"
 
 export function read(filename: string): string | undefined {
-    BlzSetAbilityTooltip(abilityId, noDataMarker, 0)
+    BlzSetAbilityIcon(abilityId, noDataMarker)
     Preloader(filename)
-    let data = BlzGetAbilityTooltip(abilityId, 0)
+    let data = BlzGetAbilityIcon(abilityId)
     if (data == noDataMarker) {
         return undefined
     } else {
@@ -28,7 +28,7 @@ PreloadEnd=function()end
 let postlude = string.format(
     `
 //! beginusercode
-BlzSetAbilityTooltip(%s, a, 0)
+BlzSetAbilityIcon(%s, a)
 //! endusercode
 `,
     abilityId

@@ -2,13 +2,15 @@ require 'std.core.util'
 require 'std.core.types.player'
 local hook = require 'std.core.hook'
 
-unit = unit or {
-    __unitStorage = {}
-}
+unit = unit or {}
 
-local unitStorage = unit.__unitStorage
+local context = util.context("unit", {
+    storage = {},
+})
+
+local unitStorage = context.storage
+local dummyGroup = context.dummyGroup
 local unitMeta = util.meta.get("unit")
-local dummyGroup = unit.__dummyGroup
 
 local function wrapUnit(u)
     local id = GetHandleId(u)
@@ -101,7 +103,7 @@ macro_define("GEN_U_FUNC", function(nativeName, funcName, args, wrapper, extraAs
         asserts = ""
         for i, v in ipairs(args) do
             if v[2] == "id" then
-                asserts = asserts .. MAKE_SANITIZE_OBJID(v[1])
+                asserts = asserts .. MAKE_SANITIZE_OBJID(v[1]) .. " "
             else
                 asserts = asserts .. MAKE_ASSERT_ARG_TYPE(i, v[1], v[2]) .. " "
             end
@@ -124,7 +126,7 @@ macro_define("GEN_U_FUNC", function(nativeName, funcName, args, wrapper, extraAs
     ]]):format(funcName, params, asserts, wrapper)
 end)
 
-compiletime(function() 
+compiletime(function()
     PLAYER_WRAP = "__WrapPlayer(%s(self.__h))"
     HANDLE_UNWRAP = "%s(self.__h, v.__h)"
 end)
@@ -142,10 +144,9 @@ GEN_U_FUNC("GetUnitAbilityLevel", "getAbilityLevel", {{"abilityId", "id"}})
 GEN_U_FUNC("SetUnitAbilityLevel", "setAbilityLevel", {{"abilityId", "id"}, {"level", "number"}})
 GEN_U_FUNC("UnitAddAbility",       "addAbility",     {{"abilityId", "id"}})
 
-
 hook.once(function()
     dummyGroup = CreateGroup()
-    unit.__dummyGroup = dummyGroup
+    context.dummyGroup = dummyGroup
 end)
 
 hook.addPost("unitRemoved", function(removedUnit)

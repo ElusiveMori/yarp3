@@ -64,7 +64,7 @@ event.registerOnce(function()
     TriggerAddAction(t, ceres.wrapCatch(function()
         if player.get(0).isLocal then
             preload.write("ceresLiveReloadFile.pld", "NODATA")
-            connector.sendCommand("std-livereload")
+            connector.sendCommand("std-livereload", "")
 
             local tryRead
             local retries = 10
