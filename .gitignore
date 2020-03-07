@@ -3,8 +3,13 @@
 !/src
 !/lib
 !/build.lua
-!/maps
 !/natives
-/maps/yarp
+!/tsconfig.json
+!/package.json
+!/package-lock.json
+!/maps/mpq.w3x
+!/pure
+!/.eslintrc.js
+!/.eslintignore
 /node_modules
 /compiled

@@ -1,0 +1,23 @@
+{
+    "compilerOptions": {
+        "target": "es6",
+        "lib": ["es6"],
+        "strict": true,
+        "noImplicitAny": true,
+        "noImplicitThis": true,
+        "noImplicitReturns": true,
+        "alwaysStrict": true,
+        "strictNullChecks": true,
+        "moduleResolution": "node",
+        "outDir": "target/compiled",
+        "rootDir": "src/",
+        "types": ["cerrie/init"]
+    },
+    "include": ["src/**/*.ts"],
+    "tstl": {
+        "luaTarget": "5.3",
+        "noHeader": true,
+        "luaLibImport": "require",
+        "noImplicitSelf": true
+    }
+}
