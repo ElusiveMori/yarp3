@@ -2,10 +2,10 @@ ceres.runConfig = {
     command = "start-wc3",
     prefix = "Z:/",
     mapDataDir = "/home/mori/Documents/Warcraft III/CustomMapData",
-    args = {"-launch", "-windowmode", "windowed"}
+    args = {"-hd", "0"}
 }
 
-table.insert(ceres.layout.srcDirectories, "ts/compiled/")
+ceres.layout.srcDirectories = {"target/compiled", "node_modules", "pure"}
 
 -- ceres.addPreScriptBuildHook("tstl-compile", function()
 --     log("Running TSTL...")

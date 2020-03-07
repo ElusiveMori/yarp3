@@ -4,7 +4,7 @@
 !/lib
 !/build.lua
 !/maps
-!/ts
+!/natives
 /maps/yarp
-/ts/node_modules
-/ts/compiled
+/node_modules
+/compiled
