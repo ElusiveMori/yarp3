@@ -12,6 +12,7 @@ import { triggerLiveReload } from "cerrie/livereload"
 import { stringToPlayerColor } from "../playercolor"
 import { sysMessage } from "../log"
 import "cerrie/core/util"
+import { Unit } from "cerrie/core/types/unit"
 
 registerDefaultAlias("gl", "global")
 
@@ -146,32 +147,25 @@ registerSimpleCommand("time", (_, lexer) => {
     }
 })
 
-registerSimpleCommand("dnc", (_, lexer) => {
-    const id = tonumber(lexer.lex()) || 0
-
-    const dncs = [
-        "DNCAnimated2.mdx", //0
-        "DNCAshenValeTerrain.mdx", //1
-        "DNCUndergroundTerrain.mdx", //2
-        "DNCCustom.mdx" //3
-    ]
-
-    SetDayNightModels(dncs[id], dncs[id])
-})
-
-registerSimpleCommand("dncreset", () => {
-    SetDayNightModels(
-        "environment/dnc/dncdungeon/dncdungeonterrain/dncdungeonterrain.mdx",
-        "environment/dnc/dncdungeon/dncdungeonunit/dncdungeonunit.mdx"
-    )
-})
-
-registerSimpleCommand("makelight", () => {
-    AddSpecialEffect("doodads/lordaeronsummer/props/lanternpost/lanternpost0.mdx", 0, 0)
+registerSimpleCommand("tablespam", (e, lexer) => {
+    const mul = tonumber(lexer.lex())!
+    const count = mul * 1_000
+    const us: Unit[] = []
+    for (let i = 0; i < count; i++) {
+        const u = Unit.create(e, "hfoo", 0, 0, 0)
+        us[us.length] = u
+    }
+    for (const u of us) {
+        u.remove()
+    }
 })
 
 registerSimpleCommand("lorem", () => {
     sysMessage(
         "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo. Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni dolores eos qui ratione voluptatem sequi nesciunt. Neque porro quisquam est, qui dolorem ipsum quia dolor sit amet, consectetur, adipisci velit, sed quia non numquam eius modi tempora incidunt ut labore et dolore magnam aliquam quaerat voluptatem. Ut enim ad minima veniam, quis nostrum exercitationem ullam corporis suscipit laboriosam, nisi ut aliquid ex ea commodi consequatur? Quis autem vel eum iure reprehenderit qui in ea voluptate velit esse quam nihil molestiae consequatur, vel illum qui dolorem eum fugiat quo voluptas nulla pariatur?"
     )
+})
+
+registerSimpleCommand("raise", () => {
+    TerrainDeformCrater(0, 0, 1024, -128, 10, true)
 })

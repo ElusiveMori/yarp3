@@ -1,16 +1,19 @@
-import { P, registerKeyEvent, ModKey } from "cerrie/core/war3event"
+import { P, registerKeyEvent, ModKey, U } from "cerrie/core/war3event"
 import { Player } from "cerrie/core/types/player"
 import { Unit } from "cerrie/core/types/unit"
 import Vector2 from "cerrie/core/vecmath/vec2"
 import { sysMessage } from "./log"
 
-import "./units/unit"
+import "./unitext"
+import { flyUnit } from "./unitext"
+import Timer from "cerrie/core/timer"
 
 enum EditMode {
     NONE,
     MOVE,
     ROTATE,
-    SCALE
+    SCALE,
+    HEIGHT
 }
 
 interface Contexts {
@@ -29,10 +32,11 @@ interface EditorContext {
 
 interface EditedUnit {
     unit: Unit
-    offsetX: number
-    offsetY: number
+    offsetX?: number
+    offsetY?: number
     originalFacing?: number
     originalScale?: number
+    originalHeight?: number
 }
 
 const contexts: Contexts = {}
@@ -114,7 +118,18 @@ function enableEditorMode(player: Player, editMode: EditMode): void {
                 unit: unit,
                 offsetX: offsetX,
                 offsetY: offsetY,
-                originalScale: unit.size
+                originalScale: unit.size,
+                originalHeight: unit.z
+            }
+        }
+    } else if (editMode == EditMode.HEIGHT) {
+        context.pivotPos = mousePos.copy()
+
+        for (const unit of selection) {
+            flyUnit(unit)
+            editedUnits[editedUnits.length] = {
+                unit: unit,
+                originalHeight: unit.z
             }
         }
     }
@@ -131,8 +146,10 @@ P.MouseMove.register((p, x, y) => {
 
     if (context.editMode == EditMode.MOVE) {
         for (const editedUnit of context.editedUnits) {
-            editedUnit.unit.x = x + editedUnit.offsetX
-            editedUnit.unit.y = y + editedUnit.offsetY
+            editedUnit.unit.x = x + editedUnit.offsetX!
+            editedUnit.unit.y = y + editedUnit.offsetY!
+
+            editedUnit.unit.issueSelfOrder("stop")
         }
     } else if (context.editMode == EditMode.ROTATE) {
         const dx = context.pivotPos.x - context.currentMousePos.x
@@ -141,8 +158,8 @@ P.MouseMove.register((p, x, y) => {
         const offsetAng = (math.atan(dy, dx) - context.startMouseAng!) % (math.pi * 2)
 
         for (const editedUnit of context.editedUnits) {
-            const unitAng = math.atan(editedUnit.offsetY, editedUnit.offsetX)
-            const unitDist = math.sqrt(editedUnit.offsetX ** 2 + editedUnit.offsetY ** 2)
+            const unitAng = math.atan(editedUnit.offsetY!, editedUnit.offsetX!)
+            const unitDist = math.sqrt(editedUnit.offsetX! ** 2 + editedUnit.offsetY! ** 2)
 
             const newX =
                 math.cos((unitAng + offsetAng) % (math.pi * 2)) * unitDist + context.pivotPos.x
@@ -155,7 +172,9 @@ P.MouseMove.register((p, x, y) => {
             const newUnitFacing =
                 (((editedUnit.originalFacing! + offsetAng) % (math.pi * 2)) * 180) / math.pi
 
-            BlzSetUnitFacingEx(editedUnit.unit.handle, newUnitFacing)
+            editedUnit.unit.facing = newUnitFacing
+
+            editedUnit.unit.issueSelfOrder("stop")
         }
     } else if (context.editMode == EditMode.SCALE) {
         const dx = context.pivotPos.x - context.currentMousePos.x
@@ -166,42 +185,55 @@ P.MouseMove.register((p, x, y) => {
 
         for (const editedUnit of context.editedUnits) {
             editedUnit.unit.size = editedUnit.originalScale! * scale
-            editedUnit.unit.x = context.pivotPos.x + editedUnit.offsetX * scale
-            editedUnit.unit.y = context.pivotPos.y + editedUnit.offsetY * scale
+            editedUnit.unit.x = context.pivotPos.x + editedUnit.offsetX! * scale
+            editedUnit.unit.y = context.pivotPos.y + editedUnit.offsetY! * scale
+            editedUnit.unit.z = editedUnit.originalHeight! * scale
+
+            editedUnit.unit.issueSelfOrder("stop")
+        }
+    } else if (context.editMode == EditMode.HEIGHT) {
+        let minHeight = math.huge
+        for (const editedUnit of context.editedUnits) {
+            minHeight = math.min(minHeight, editedUnit.originalHeight!)
+        }
+
+        const dy = math.min(minHeight, context.pivotPos.y - context.currentMousePos.y)
+
+        for (const editedUnit of context.editedUnits) {
+            editedUnit.unit.z = editedUnit.originalHeight! - dy / 1.5
+
+            editedUnit.unit.issueSelfOrder("stop")
         }
     }
 })
 
-P.MouseDown.register((p, x, y, clickType) => {
-    //
-})
+function editorEnabler(type: EditMode): (p: Player) => void {
+    return (p): void => {
+        const context = contexts[p.id]
 
-registerKeyEvent(OSKEY_Q, ModKey.None, false, p => {
-    const context = contexts[p.id]
-
-    if (context.editMode == EditMode.MOVE) {
-        context.editMode = EditMode.NONE
-    } else {
-        enableEditorMode(p, EditMode.MOVE)
+        if (context.editMode == type) {
+            context.editMode = EditMode.NONE
+        } else {
+            enableEditorMode(p, type)
+        }
     }
-})
+}
 
-registerKeyEvent(OSKEY_W, ModKey.None, false, p => {
-    const context = contexts[p.id]
+registerKeyEvent(OSKEY_Q, ModKey.None, false, editorEnabler(EditMode.MOVE))
+registerKeyEvent(OSKEY_W, ModKey.None, false, editorEnabler(EditMode.ROTATE))
+registerKeyEvent(OSKEY_E, ModKey.None, false, editorEnabler(EditMode.SCALE))
+registerKeyEvent(OSKEY_R, ModKey.None, false, editorEnabler(EditMode.HEIGHT))
 
-    if (context.editMode == EditMode.ROTATE) {
-        context.editMode = EditMode.NONE
-    } else {
-        enableEditorMode(p, EditMode.ROTATE)
-    }
-})
+// instant build
+U.OrderPoint.register((builder, orderId, x, y) => {
+    // build orders have a non-zero first octet
+    if (orderId >>> 24 > 0) {
+        const built = Unit.create(builder.owner, orderId, x, y, 270)
+        built.x = x
+        built.y = y
 
-registerKeyEvent(OSKEY_E, ModKey.None, false, p => {
-    const context = contexts[p.id]
-
-    if (context.editMode == EditMode.SCALE) {
-        context.editMode = EditMode.NONE
-    } else {
-        enableEditorMode(p, EditMode.SCALE)
+        Timer.simple(0, () => {
+            builder.issueSelfOrder("stop")
+        })
     }
 })

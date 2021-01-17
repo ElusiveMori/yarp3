@@ -5,6 +5,8 @@ ceres.runConfig = {
     args = {"-hd", "0"}
 }
 
+ceres.buildConfig.minifyLevel = 3
+
 ceres.layout.srcDirectories = {"target/compiled", "node_modules", "pure"}
 
 -- ceres.addPreScriptBuildHook("tstl-compile", function()

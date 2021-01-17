@@ -1,3 +1,5 @@
+import { PlayerColor } from "cerrie/core/types/playercolor"
+
 const colorMap: { [id: string]: number | undefined } = {
     red: 0,
     blue: 1,
@@ -53,11 +55,11 @@ const colorMap: { [id: string]: number | undefined } = {
     brown2: 23
 }
 
-export function stringToPlayerColor(input: string): jplayercolor | undefined {
+export function stringToPlayerColor(input: string): PlayerColor | undefined {
     const id = colorMap[input]
 
     if (id != undefined) {
-        return ConvertPlayerColor(id)
+        return PlayerColor.byId(id)
     } else {
         return undefined
     }

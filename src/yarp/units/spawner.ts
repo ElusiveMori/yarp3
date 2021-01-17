@@ -6,10 +6,11 @@ import { Player } from "cerrie/core/types/player"
 import { addGetter } from "../../augment"
 import { U, P } from "cerrie/core/war3event"
 import Timer from "cerrie/core/timer"
+import { YUnitType } from "../unitext"
 
 const SPAWNER_ID = compiletime(() => {
     if (!currentMap) {
-        return "ERRR"
+        throw "Current map must be active"
     }
 
     const cargoHold = objutil.createObject(objutil.ObjectType.ABILITY, "Sch5", {
@@ -52,16 +53,6 @@ declare module "cerrie/core/types/player" {
     }
 }
 
-declare module "cerrie/core/types/unit" {
-    interface Unit {
-        readonly spawner?: Spawner
-    }
-}
-
-addGetter<Player>(Player, "spawner", function() {
-    return Spawner.of(this)
-})
-
 export class Spawner {
     private static spawners: Spawner[] = util.contextFn("yarp/spawners", () => {
         const spawners: Spawner[] = []
@@ -81,7 +72,7 @@ export class Spawner {
     private constructor(owner: Player) {
         this.unit = Unit.create(owner, SPAWNER_ID, 0, 0, 0)
         this.unit.size = 0.25
-        this.unit.spawner = this
+        this.unit.yarp.type = YUnitType.SPAWNER
         this.owner = owner
     }
 
@@ -93,7 +84,7 @@ export class Spawner {
 U.OrderPoint.register((unit, orderId, x, y) => {
     const orderString = OrderId2String(orderId)
 
-    if (unit.spawner) {
+    if (unit.yarp.type == YUnitType.SPAWNER) {
         if (orderString == "move" || orderString == "patrol" || orderString == "smart") {
             unit.x = x
             unit.y = y

@@ -24,7 +24,7 @@ for (const player of Player.all) {
     aliases.set(player, new Map())
 }
 
-class CmdThread {
+export class CmdThread {
     private static threadMap = new Map<LuaThread, CmdThread>()
 
     private thread: LuaThread
